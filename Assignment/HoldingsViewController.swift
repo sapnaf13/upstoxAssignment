@@ -12,6 +12,9 @@ class HoldingsViewController: UIViewController {
     private let tableView = UITableView()
     private let headerLabel = UILabel()
     private var bottomButtons: [UIButton] = []
+    private let summaryLabel = UILabel()
+    private var isSummaryVisible = false
+
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -89,6 +92,16 @@ class HoldingsViewController: UIViewController {
         tableView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tableView)
         
+        summaryLabel.numberOfLines = 0
+        summaryLabel.textAlignment = .center
+        summaryLabel.backgroundColor = UIColor(hex: "#F5F5F5")
+        summaryLabel.isHidden = true
+        summaryLabel.layer.cornerRadius = 10
+        summaryLabel.clipsToBounds = true
+        summaryLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(summaryLabel)
+        
+        
         
         NSLayoutConstraint.activate([
             headerLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -136,10 +149,51 @@ class HoldingsViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: containerView.bottomAnchor, constant: 0),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
+            summaryLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
+            summaryLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: 0),
+            summaryLabel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -60),
+            summaryLabel.heightAnchor.constraint(equalToConstant: 120)
             
         ])
     }
+    
+    private func updateSummary() {
+        let attributedString = NSMutableAttributedString()
+        
+        func createFormattedText(label: String, value: String, valueColor: UIColor) -> NSAttributedString {
+            let labelAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 15),
+                .foregroundColor: UIColor.black
+            ]
+            let valueAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 15),
+                .foregroundColor: valueColor
+            ]
+            
+            let formattedText = NSMutableAttributedString(
+                string: "\(label): ",
+                attributes: labelAttributes
+            )
+            formattedText.append(NSAttributedString(string: value, attributes: valueAttributes))
+            formattedText.append(NSAttributedString(string: "\n"))
+            return formattedText
+        }
+        
+        let currentValue = String(format: "%.2f", viewModel.currentValue)
+        let totalInvestment = String(format: "%.2f", viewModel.totalInvestment)
+        let totalPNL = String(format: "%.2f", viewModel.totalPNL)
+        let todaysPNL = String(format: "%.2f", viewModel.todaysPNL)
+        
+        attributedString.append(createFormattedText(label: "Current Value", value: currentValue, valueColor: .black))
+        attributedString.append(createFormattedText(label: "Total Investment", value: totalInvestment, valueColor: .black))
+        attributedString.append(createFormattedText(label: "Total PNL", value: totalPNL, valueColor: .red))
+        attributedString.append(createFormattedText(label: "Today's PNL", value: todaysPNL, valueColor: .red))
+        
+        summaryLabel.attributedText = attributedString
+    }
+
     
     private func setupBottomBar() {
         let bottomBar = UIView()
@@ -151,20 +205,7 @@ class HoldingsViewController: UIViewController {
             bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             bottomBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 60)
-        ])
-        
-        let stackView = UIStackView()
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.axis = .horizontal
-        stackView.distribution = .fillEqually
-        bottomBar.addSubview(stackView)
-        
-        NSLayoutConstraint.activate([
-            stackView.leadingAnchor.constraint(equalTo: bottomBar.leadingAnchor),
-            stackView.trailingAnchor.constraint(equalTo: bottomBar.trailingAnchor),
-            stackView.topAnchor.constraint(equalTo: bottomBar.topAnchor),
-            stackView.bottomAnchor.constraint(equalTo: bottomBar.bottomAnchor)
+            bottomBar.heightAnchor.constraint(equalToConstant: 70)
         ])
         
         let options = [
@@ -175,20 +216,38 @@ class HoldingsViewController: UIViewController {
             ("Invest", "percent")
         ]
         
+        let buttonHorizontalPadding: CGFloat = 12.0
+        let buttonBottomPadding: CGFloat = 8.0
+        let totalHorizontalPadding = buttonHorizontalPadding * CGFloat(options.count + 1)
+        let buttonWidth = (UIScreen.main.bounds.width - totalHorizontalPadding) / CGFloat(options.count)
+        
         for (index, option) in options.enumerated() {
             let button = createBottomBarButton(title: option.0, systemSymbolName: option.1, tag: index)
-            stackView.addArrangedSubview(button)
+            bottomBar.addSubview(button)
             bottomButtons.append(button)
+            
+            NSLayoutConstraint.activate([
+                button.topAnchor.constraint(equalTo: bottomBar.topAnchor, constant: buttonBottomPadding),
+                button.bottomAnchor.constraint(equalTo: bottomBar.bottomAnchor, constant: -buttonBottomPadding),
+                button.widthAnchor.constraint(equalToConstant: buttonWidth)
+            ])
+            
+            if index == 0 {
+                button.leadingAnchor.constraint(equalTo: bottomBar.leadingAnchor, constant: buttonHorizontalPadding).isActive = true
+            } else if index == options.count - 1 {
+                button.trailingAnchor.constraint(equalTo: bottomBar.trailingAnchor, constant: -buttonHorizontalPadding).isActive = true
+                button.leadingAnchor.constraint(equalTo: bottomButtons[index - 1].trailingAnchor, constant: buttonHorizontalPadding).isActive = true
+            } else {
+                button.leadingAnchor.constraint(equalTo: bottomButtons[index - 1].trailingAnchor, constant: buttonHorizontalPadding).isActive = true
+            }
         }
     }
-    
-    
-    
+
     private func createBottomBarButton(title: String, systemSymbolName: String, tag: Int) -> UIButton {
         let button = UIButton()
         button.tag = tag
         button.translatesAutoresizingMaskIntoConstraints = false
-        // button.addTarget(self, action: #selector(bottomBarButtonTapped(_:)), for: .touchUpInside)
+        button.addTarget(self, action: #selector(bottomBarButtonTapped(_:)), for: .touchUpInside)
         
         let imageView = UIImageView(image: UIImage(systemName: systemSymbolName))
         imageView.contentMode = .scaleAspectFit
@@ -202,27 +261,48 @@ class HoldingsViewController: UIViewController {
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         
-        let stackView = UIStackView(arrangedSubviews: [imageView, label])
-        stackView.axis = .vertical
-        stackView.alignment = .center
-        stackView.spacing = 4
-        stackView.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(imageView)
+        button.addSubview(label)
         
-        button.addSubview(stackView)
         NSLayoutConstraint.activate([
-            stackView.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-            stackView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
-            stackView.widthAnchor.constraint(equalTo: button.widthAnchor, multiplier: 0.8)
+            imageView.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            imageView.topAnchor.constraint(equalTo: button.topAnchor, constant: 8),
+            imageView.widthAnchor.constraint(equalTo: button.widthAnchor, multiplier: 0.4),
+            imageView.heightAnchor.constraint(equalTo: button.heightAnchor, multiplier: 0.4),
+            
+            label.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            label.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 4),
+            label.leadingAnchor.constraint(equalTo: button.leadingAnchor, constant: 4),
+            label.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -4)
         ])
         
         return button
     }
     
+    
+    @objc private func bottomBarButtonTapped(_ sender: UIButton) {
+        print("button tapped")
+        
+        if sender.tag == 2 {
+            isSummaryVisible.toggle()
+            summaryLabel.isHidden = false
+            
+            UIView.animate(withDuration: 0.5, animations: {
+                self.summaryLabel.transform = self.isSummaryVisible ? .identity : CGAffineTransform(translationX: 0, y: 80)
+            }, completion: { _ in
+                if !self.isSummaryVisible {
+                    self.summaryLabel.isHidden = true
+                }
+            })
+        }
+    }
+
+    
     private func fetchData() {
         viewModel.fetchHoldings { [weak self] success in
             DispatchQueue.main.async {
                 if success {
-                   // self?.updateSummary()
+                    self?.updateSummary()
                     self?.tableView.reloadData()
                 } else {
                     self?.showError()
