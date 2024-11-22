@@ -257,10 +257,21 @@ class HoldingsViewController: UIViewController {
         arrowImageView.image = UIImage(systemName: "arrow.up")
         arrowImageView.translatesAutoresizingMaskIntoConstraints = false
         
+        
         let valueLabel = UILabel()
-        valueLabel.text = String(format: "%.2f", viewModel.todaysPNL)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencySymbol = "₹"
+        formatter.maximumFractionDigits = 2
+
+        if let formattedValue = formatter.string(from: NSNumber(value: viewModel.todaysPNL)) {
+            valueLabel.text = formattedValue
+        } else {
+            valueLabel.text = "₹0.00"
+        }
+
         valueLabel.font = UIFont.systemFont(ofSize: 16)
-        valueLabel.textColor = viewModel.todaysPNL >= 0 ? UIColor.systemGreen : UIColor.red;
+        valueLabel.textColor = viewModel.todaysPNL >= 0 ? UIColor.systemGreen : UIColor.red
         valueLabel.translatesAutoresizingMaskIntoConstraints = false
         
         pnlView.addSubview(titleLabel)
@@ -296,13 +307,13 @@ class HoldingsViewController: UIViewController {
         view.addSubview(pnlExpandableView)
         
         let titleLabel1 = createLabel(text: "Current Value *", fontSize: 14)
-        let valueLabel1 = createLabel(text: String(format: "%.2f", viewModel.currentValue), fontSize: 16, textColor: .black)
+        let valueLabel1 = createLabel(text: String(format: " ₹%.2f", viewModel.currentValue), fontSize: 16, textColor: .black)
         
         let titleLabel2 = createLabel(text: "Total Investment *", fontSize: 14)
-        let valueLabel2 = createLabel(text: String(format: "%.2f", viewModel.totalInvestment), fontSize: 16, textColor: .black)
+        let valueLabel2 = createLabel(text: String(format: " ₹%.2f", viewModel.totalInvestment), fontSize: 16, textColor: .black)
         
         let titleLabel3 = createLabel(text: "Today's PNL *", fontSize: 14)
-        let valueLabel3 = createLabel(text: String(format: "%.2f", viewModel.totalPNL), fontSize: 16, textColor: viewModel.totalPNL >= 0 ? UIColor.systemGreen : UIColor.red )
+        let valueLabel3 = createLabel(text: String(format: " ₹%.2f", viewModel.totalPNL), fontSize: 16, textColor: viewModel.totalPNL >= 0 ? UIColor.systemGreen : UIColor.red )
         
         pnlExpandableView.addSubview(titleLabel1)
         pnlExpandableView.addSubview(valueLabel1)
