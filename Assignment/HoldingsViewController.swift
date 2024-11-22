@@ -12,9 +12,11 @@ class HoldingsViewController: UIViewController {
     private let tableView = UITableView()
     private let headerLabel = UILabel()
     private var bottomButtons: [UIButton] = []
-    private let summaryLabel = UILabel()
-    private var isSummaryVisible = false
-
+    private let pnlView = UIView()
+    private let arrowImageView = UIImageView()
+    private let pnlExpandableView = UIView()
+    private var isExpanded = false
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -92,17 +94,6 @@ class HoldingsViewController: UIViewController {
         tableView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tableView)
         
-        summaryLabel.numberOfLines = 0
-        summaryLabel.textAlignment = .center
-        summaryLabel.backgroundColor = UIColor(hex: "#F5F5F5")
-        summaryLabel.isHidden = true
-        summaryLabel.layer.cornerRadius = 10
-        summaryLabel.clipsToBounds = true
-        summaryLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(summaryLabel)
-        
-        
-        
         NSLayoutConstraint.activate([
             headerLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             headerLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
@@ -149,51 +140,12 @@ class HoldingsViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: containerView.bottomAnchor, constant: 0),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            
-            summaryLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
-            summaryLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: 0),
-            summaryLabel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -60),
-            summaryLabel.heightAnchor.constraint(equalToConstant: 120)
-            
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+        
     }
     
-    private func updateSummary() {
-        let attributedString = NSMutableAttributedString()
-        
-        func createFormattedText(label: String, value: String, valueColor: UIColor) -> NSAttributedString {
-            let labelAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 15),
-                .foregroundColor: UIColor.black
-            ]
-            let valueAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 15),
-                .foregroundColor: valueColor
-            ]
-            
-            let formattedText = NSMutableAttributedString(
-                string: "\(label): ",
-                attributes: labelAttributes
-            )
-            formattedText.append(NSAttributedString(string: value, attributes: valueAttributes))
-            formattedText.append(NSAttributedString(string: "\n"))
-            return formattedText
-        }
-        
-        let currentValue = String(format: "%.2f", viewModel.currentValue)
-        let totalInvestment = String(format: "%.2f", viewModel.totalInvestment)
-        let totalPNL = String(format: "%.2f", viewModel.totalPNL)
-        let todaysPNL = String(format: "%.2f", viewModel.todaysPNL)
-        
-        attributedString.append(createFormattedText(label: "Current Value", value: currentValue, valueColor: .black))
-        attributedString.append(createFormattedText(label: "Total Investment", value: totalInvestment, valueColor: .black))
-        attributedString.append(createFormattedText(label: "Total PNL", value: totalPNL, valueColor: .red))
-        attributedString.append(createFormattedText(label: "Today's PNL", value: todaysPNL, valueColor: .red))
-        
-        summaryLabel.attributedText = attributedString
-    }
-
+    
     
     private func setupBottomBar() {
         let bottomBar = UIView()
@@ -205,7 +157,9 @@ class HoldingsViewController: UIViewController {
             bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             bottomBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 70)
+            bottomBar.heightAnchor.constraint(equalToConstant: 70),
+            
+            
         ])
         
         let options = [
@@ -242,7 +196,7 @@ class HoldingsViewController: UIViewController {
             }
         }
     }
-
+    
     private func createBottomBarButton(title: String, systemSymbolName: String, tag: Int) -> UIButton {
         let button = UIButton()
         button.tag = tag
@@ -283,26 +237,140 @@ class HoldingsViewController: UIViewController {
     @objc private func bottomBarButtonTapped(_ sender: UIButton) {
         print("button tapped")
         
-        if sender.tag == 2 {
-            isSummaryVisible.toggle()
-            summaryLabel.isHidden = false
-            
-            UIView.animate(withDuration: 0.5, animations: {
-                self.summaryLabel.transform = self.isSummaryVisible ? .identity : CGAffineTransform(translationX: 0, y: 80)
-            }, completion: { _ in
-                if !self.isSummaryVisible {
-                    self.summaryLabel.isHidden = true
-                }
-            })
-        }
     }
-
+    
+    private func setupPnlView() {
+        
+        pnlView.translatesAutoresizingMaskIntoConstraints = false
+        pnlView.backgroundColor =  UIColor(hex: "#F5F5F5")
+        pnlView.isUserInteractionEnabled = true
+        view.addSubview(pnlView)
+        
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(pnlTapped))
+        pnlView.addGestureRecognizer(tapGesture)
+        
+        let titleLabel = UILabel()
+        titleLabel.text = "Profit & Loss *"
+        titleLabel.font = UIFont.systemFont(ofSize: 14)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        arrowImageView.image = UIImage(systemName: "arrow.up")
+        arrowImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let valueLabel = UILabel()
+        valueLabel.text = String(format: "%.2f", viewModel.todaysPNL)
+        valueLabel.font = UIFont.systemFont(ofSize: 16)
+        valueLabel.textColor = viewModel.todaysPNL >= 0 ? UIColor.systemGreen : UIColor.red;
+        valueLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        pnlView.addSubview(titleLabel)
+        pnlView.addSubview(arrowImageView)
+        pnlView.addSubview(valueLabel)
+        
+        
+        NSLayoutConstraint.activate([
+            
+            pnlView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -60 ),
+            pnlView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
+            pnlView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: 0),
+            pnlView.heightAnchor.constraint(equalToConstant: 50),
+            
+            titleLabel.leadingAnchor.constraint(equalTo: pnlView.leadingAnchor, constant: 16),
+            titleLabel.centerYAnchor.constraint(equalTo: pnlView.centerYAnchor),
+            
+            arrowImageView.centerYAnchor.constraint(equalTo: pnlView.centerYAnchor),
+            arrowImageView.leadingAnchor.constraint(equalTo: titleLabel.trailingAnchor, constant: 8),
+            arrowImageView.widthAnchor.constraint(equalToConstant: 15),
+            arrowImageView.heightAnchor.constraint(equalToConstant: 15),
+            
+            valueLabel.trailingAnchor.constraint(equalTo: pnlView.trailingAnchor, constant: -16),
+            valueLabel.centerYAnchor.constraint(equalTo: pnlView.centerYAnchor)
+        ])
+        
+    }
+    
+    private func setupPnlExpandableView() {
+        pnlExpandableView.translatesAutoresizingMaskIntoConstraints = false
+        pnlExpandableView.backgroundColor = UIColor(hex: "#F5F5F5")
+        pnlExpandableView.isHidden = true
+        view.addSubview(pnlExpandableView)
+        
+        let titleLabel1 = createLabel(text: "Current Value *", fontSize: 14)
+        let valueLabel1 = createLabel(text: String(format: "%.2f", viewModel.currentValue), fontSize: 16, textColor: .black)
+        
+        let titleLabel2 = createLabel(text: "Total Investment *", fontSize: 14)
+        let valueLabel2 = createLabel(text: String(format: "%.2f", viewModel.totalInvestment), fontSize: 16, textColor: .black)
+        
+        let titleLabel3 = createLabel(text: "Today's PNL *", fontSize: 14)
+        let valueLabel3 = createLabel(text: String(format: "%.2f", viewModel.totalPNL), fontSize: 16, textColor: viewModel.totalPNL >= 0 ? UIColor.systemGreen : UIColor.red )
+        
+        pnlExpandableView.addSubview(titleLabel1)
+        pnlExpandableView.addSubview(valueLabel1)
+        pnlExpandableView.addSubview(titleLabel2)
+        pnlExpandableView.addSubview(valueLabel2)
+        pnlExpandableView.addSubview(titleLabel3)
+        pnlExpandableView.addSubview(valueLabel3)
+        
+        NSLayoutConstraint.activate([
+            titleLabel1.leadingAnchor.constraint(equalTo: pnlExpandableView.leadingAnchor, constant: 16),
+            titleLabel1.topAnchor.constraint(equalTo: pnlExpandableView.topAnchor),
+            valueLabel1.trailingAnchor.constraint(equalTo: pnlExpandableView.trailingAnchor, constant: -16),
+            valueLabel1.centerYAnchor.constraint(equalTo: titleLabel1.centerYAnchor),
+            
+            titleLabel2.leadingAnchor.constraint(equalTo: pnlExpandableView.leadingAnchor, constant: 16),
+            titleLabel2.topAnchor.constraint(equalTo: titleLabel1.bottomAnchor),
+            valueLabel2.trailingAnchor.constraint(equalTo: pnlExpandableView.trailingAnchor, constant: -16),
+            valueLabel2.centerYAnchor.constraint(equalTo: titleLabel2.centerYAnchor),
+            
+            titleLabel3.leadingAnchor.constraint(equalTo: pnlExpandableView.leadingAnchor, constant: 16),
+            titleLabel3.topAnchor.constraint(equalTo: titleLabel2.bottomAnchor),
+            valueLabel3.trailingAnchor.constraint(equalTo: pnlExpandableView.trailingAnchor, constant: -16),
+            valueLabel3.centerYAnchor.constraint(equalTo: titleLabel3.centerYAnchor),
+            
+            titleLabel1.heightAnchor.constraint(equalTo: titleLabel2.heightAnchor),
+            titleLabel2.heightAnchor.constraint(equalTo: titleLabel3.heightAnchor),
+            titleLabel3.bottomAnchor.constraint(equalTo: pnlExpandableView.bottomAnchor)
+        ])
+        
+        NSLayoutConstraint.activate([
+            pnlExpandableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            pnlExpandableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            pnlExpandableView.bottomAnchor.constraint(equalTo: pnlView.topAnchor),
+            pnlExpandableView.heightAnchor.constraint(equalToConstant: 150)
+        ])
+    }
+    
+    private func createLabel(text: String, fontSize: CGFloat, textColor: UIColor = .black) -> UILabel {
+        let label = UILabel()
+        label.text = text
+        label.font = UIFont.systemFont(ofSize: fontSize)
+        label.textColor = textColor
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }
+    
+    
+    @objc private func pnlTapped() {
+        isExpanded.toggle()
+        
+        UIView.animate(withDuration: 0.3, animations: {
+            self.arrowImageView.transform = self.isExpanded
+            ? CGAffineTransform(rotationAngle: .pi)
+            : CGAffineTransform.identity
+        })
+        
+        UIView.animate(withDuration: 0.3, animations: {
+            self.pnlExpandableView.isHidden = !self.isExpanded
+        })
+    }
+    
     
     private func fetchData() {
         viewModel.fetchHoldings { [weak self] success in
             DispatchQueue.main.async {
                 if success {
-                    self?.updateSummary()
+                    self?.setupPnlView()
+                    self?.setupPnlExpandableView()
                     self?.tableView.reloadData()
                 } else {
                     self?.showError()
@@ -331,8 +399,8 @@ extension HoldingsViewController: UITableViewDataSource {
         cell.configure(with: holding, pnl: pnl)
         return cell
     }
-
-
+    
+    
 }
 
 extension UIColor {
